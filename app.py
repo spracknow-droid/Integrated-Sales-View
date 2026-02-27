@@ -8,12 +8,9 @@ from database import create_integrated_sales_view, get_view_data
 
 def convert_df_to_excel(df):
     output = io.BytesIO()
-    try:
-        with pd.ExcelWriter(output) as writer:
-            df.to_excel(writer, index=False)
-        return output.getvalue()
-    except Exception as e:
-        return str(e)
+    with pd.ExcelWriter(output) as writer:
+        df.to_excel(writer, index=False)
+    return output.getvalue()
 
 
 def main():
@@ -38,42 +35,46 @@ def main():
         try:
             conn = sqlite3.connect(temp_db_path)
 
-            st.write("① DB 연결 성공")
-
             create_integrated_sales_view(conn)
-            st.write("② View 생성 성공")
-
             df = get_view_data(conn)
-            st.write("③ 데이터 로드 성공")
-
-            st.write("📊 DF shape:", df.shape)
-            st.write("📊 DF empty:", df.empty)
-
-            # ✅ 버튼을 조건 없이 항상 표시
-            excel_data = convert_df_to_excel(df)
-
-            st.write("④ 엑셀 변환 타입:", type(excel_data))
-
-            if isinstance(excel_data, bytes):
-                st.download_button(
-                    "📂 엑셀 다운로드",
-                    data=excel_data,
-                    file_name="integrated_sales_data.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-                st.write("⑤ 다운로드 버튼 생성 완료")
-            else:
-                st.error(f"엑셀 변환 실패: {excel_data}")
-
-            st.dataframe(df, use_container_width=True)
 
             conn.close()
 
+            if df.empty:
+                st.warning("데이터가 없습니다.")
+                return
+
+            # =========================
+            # 1️⃣ 결과 테이블
+            # =========================
+            st.subheader("📊 통합 판매 데이터")
+            st.dataframe(df, use_container_width=True)
+
+            # =========================
+            # 2️⃣ 엑셀 다운로드 버튼
+            # =========================
+            excel_data = convert_df_to_excel(df)
+
+            st.download_button(
+                label="📂 엑셀 다운로드",
+                data=excel_data,
+                file_name="integrated_sales_data.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+            # =========================
+            # 3️⃣ 기타 설명 (접기)
+            # =========================
+            with st.expander("ℹ️ 상세 정보 보기"):
+                st.write(f"총 데이터 건수: {len(df)}")
+                st.write(f"컬럼 수: {len(df.columns)}")
+                st.write("데이터는 sales_plan_data + sales_actual_data를 통합한 View입니다.")
+
         except Exception as e:
-            st.error(f"🔥 실행 중 오류 발생: {e}")
+            st.error(f"오류 발생: {e}")
 
     else:
-        st.info("DB 파일을 업로드하세요.")
+        st.info("왼쪽에서 DB 파일을 업로드하세요.")
 
 
 if __name__ == "__main__":
