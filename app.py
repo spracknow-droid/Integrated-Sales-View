@@ -15,7 +15,7 @@ def convert_df_to_excel(df):
 
 def main():
     st.set_page_config(page_title="Sales Data Integrator", layout="wide")
-    st.title("판매 데이터 통합 View")
+    st.title("Integrated Sales View")
 
     uploaded_file = st.sidebar.file_uploader(
         "SQLite DB 파일 업로드",
