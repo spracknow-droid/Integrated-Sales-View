@@ -25,20 +25,25 @@ def main():
     if uploaded_file:
         temp_db_path = "temp_sales_data.db"
 
+        # 새 파일 업로드 시 기존 임시 파일 제거
         if os.path.exists(temp_db_path):
-            os.remove(temp_db_path)
+            try:
+                os.remove(temp_db_path)
+            except:
+                pass
 
         with open(temp_db_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 
         try:
+            # 1. DB 연결 및 뷰 생성
             conn = sqlite3.connect(temp_db_path)
-
-            # View 생성 및 데이터 로드
             create_integrated_sales_view(conn)
+            
+            # 2. 데이터 불러오기
             df = get_view_data(conn)
-
-            # DB 연결 종료 (파일 다운로드를 위해 닫기)
+            
+            # 3. 중요: 연결을 닫아야 파일에 최종 기록됩니다.
             conn.close()
 
             if df.empty:
@@ -46,13 +51,13 @@ def main():
                 return
 
             # =========================
-            # 1️⃣ 결과 테이블
+            # 1️⃣ 결과 테이블 표시
             # =========================
-            st.subheader("📊 통합 판매 데이터")
+            st.subheader("📊 통합 판매 데이터 (YYYY-MM 변환 완료)")
             st.dataframe(df, use_container_width=True)
 
             # =========================
-            # 2️⃣ 다운로드 섹션 (Excel & DB)
+            # 2️⃣ 다운로드 섹션
             # =========================
             col1, col2 = st.columns(2)
             
@@ -67,25 +72,21 @@ def main():
                 )
 
             with col2:
-                # 생성된 View가 포함된 DB 파일 읽기
+                # 파일 연결이 완전히 끊긴 상태에서 binary 읽기
                 with open(temp_db_path, "rb") as f:
                     db_binary = f.read()
                 
                 st.download_button(
                     label="🗄️ 통합 View 포함 DB 다운로드",
                     data=db_binary,
-                    file_name="integrated_sales_view.db",
+                    file_name="integrated_sales_with_view.db",
                     mime="application/octet-stream",
                     use_container_width=True
                 )
 
-            # =========================
-            # 3️⃣ 기타 설명 (접기)
-            # =========================
             with st.expander("ℹ️ 상세 정보 보기"):
                 st.write(f"총 데이터 건수: {len(df)}")
-                st.write(f"컬럼 수: {len(df.columns)}")
-                st.write("다운로드한 DB 파일에는 'view_integrated_sales' 가 포함되어 있습니다.")
+                st.write("SQLite 툴에서 확인 시 'Tables'가 아닌 'Views' 카테고리를 확인해주세요.")
 
         except Exception as e:
             st.error(f"오류 발생: {e}")
